@@ -26,10 +26,18 @@
   <string name="goToDate">Aller à la date…</string>
   <string name="search">Chercher…</string>
   <string name="findAll">Trouver tout…</string>
-  <string name="addTime">Ajouter du temps</string>
+  <string name="share">"Partager…"</string>
+  <string name="addTime">Ajouter l\'heure</string>
+  <string name="addEvents">Ajouter des événements</string>
   <string name="addMedia">Ajouter des médias…</string>
   <string name="editStyles">Modifier les styles…</string>
   <string name="editScript">Modifier le script…</string>
+  <string name="backup">Sauvegarde</string>
+  <string name="start">Démarrer la sauvegarde</string>
+  <string name="complete">Sauvegarde terminée</string>
+  <string name="changes">Sauvegarder les modifications ?</string>
+  <string name="save">Sauvegarder</string>
+  <string name="discard">Jeter</string>
   <string name="settings">Paramètres</string>
   <string name="calendar">Calendrier</string>
   <string name="pref_calendar">Utiliser un calendrier alternatif</string>
@@ -57,21 +65,27 @@
     Utiliser la page d\'index pour le journal
   </string>
   <string name="pref_index_page">Page d\'index</string>
+  <string name="template">Modèle</string>
+  <string name="pref_use_template">Utilise le modèle</string>
+  <string name="pref_use_template_summ">
+    Utiliser un modèle pour les entrées de journal
+  </string>
+  <string name="pref_template_page">Page de modèle</string>
   <string name="theme">Thème</string>
   <string name="pref_dark_theme">Sombre</string>
   <string name="pref_dark_theme_summ">
     Utilisez le thème sombre pour l\'édition
   </string>
   <string name="about">À propos</string>
-  <string name="pref_about_summ"><a href="https://github.com/billthefarmer/diary/releases/latest">Diary version %s</a></string>
+  <string name="pref_about_summ"><a href="https://github.com/billthefarmer/diary/releases/latest">Version %s</a></string>
   <string name="built">Construit %s</string>
   <string name="licence">Licence <a href="https://www.gnu.org/licenses/gpl.txt">GNU GPLv3</a>
   </string>
   <string name="copyright">Copyright \u00A9 2012 <a href="mailto:hola@josep-portella.com">Josep Portella
-  Florit</a>\nCopyright \u00A9 2017 <a href="http://billthefarmer.github.io">Bill Farmer</a>\nCalendrier
+  Florit</a>\nCopyright \u00A9 2017 <a href="http://billthefarmer.github.io">Bill Farmer</a>\n\nCalendrier
   alternatif <a href="https://github.com/npanigrahy/Custom-Calendar-View">Rendu de
-  calendrier alternatif</a>\nMarkdown rendu par <a href="https://github.com/falnatsheh/MarkdownView">Markdown
-  rendu</a>\nTraduction Française par <a href="https://github.com/comptuzus">David Ta</a>\nGestion de fichier
+  calendrier alternatif</a>, Markdown rendu par <a href="https://github.com/falnatsheh/MarkdownView">Markdown
+  rendu</a>, Traduction Française par <a href="https://github.com/comptuzus">David Ta</a>, Gestion de fichier
   par <a href="https://github.com/iPaulPro">Paul Burke</a>
   </string>
 </resources>

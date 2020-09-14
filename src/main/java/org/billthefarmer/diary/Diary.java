@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -38,6 +39,7 @@ import android.text.style.BackgroundColorSpan;
 import android.util.Log;
 import android.view.ActionMode;
 import android.view.GestureDetector;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -47,6 +49,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.webkit.URLUtil;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -54,6 +57,7 @@ import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ScrollView;
 import android.widget.SearchView;
+import android.widget.Toast;
 import android.widget.ViewSwitcher;
 
 import android.support.v4.content.FileProvider;
@@ -64,8 +68,11 @@ import org.billthefarmer.view.CustomCalendarView;
 import org.billthefarmer.view.DayDecorator;
 import org.billthefarmer.view.DayView;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.InputStream;
@@ -85,6 +92,8 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 // Diary
 public class Diary extends Activity
@@ -95,9 +104,11 @@ public class Diary extends Activity
 
     private final static int REQUEST_READ = 1;
     private final static int REQUEST_WRITE = 2;
+    private final static int REQUEST_TEMPLATE = 3;
 
     private final static int POSITION_DELAY = 128;
-    private final static int BUFFER_SIZE = 1024;
+    private final static int VISIBLE_DELAY = 2048;
+    private final static int BUFFER_SIZE = 4096;
     private final static int SCALE_RATIO = 128;
     private final static int FIND_DELAY = 256;
 
@@ -119,10 +130,10 @@ public class Diary extends Activity
     private final static String ENTRY = "entry";
 
     // Patterns
-    public final static Pattern PATTERN_CHARS =
+    private final static Pattern PATTERN_CHARS =
         Pattern.compile("[\\(\\)\\[\\]\\{\\}\\<\\>\"'`]");
     private final static Pattern MEDIA_PATTERN =
-        Pattern.compile("!\\[(.*)\\]\\((.+)\\)", Pattern.MULTILINE);
+        Pattern.compile("!\\[(.*?)\\]\\((.+?)\\)", Pattern.MULTILINE);
     private final static Pattern EVENT_PATTERN =
         Pattern.compile("^@ *(\\d{1,2}:\\d{2}) +(.+)$", Pattern.MULTILINE);
     private final static Pattern MAP_PATTERN =
@@ -131,18 +142,24 @@ public class Diary extends Activity
     private final static Pattern GEO_PATTERN =
         Pattern.compile("geo:(-?\\d+[.]\\d+), ?(-?\\d+[.]\\d+).*");
     private final static Pattern DATE_PATTERN =
-        Pattern.compile("\\[(.+)\\]\\(date:(\\d+.\\d+.\\d+)\\)",
+        Pattern.compile("\\[(.+?)\\]\\(date:(\\d+.\\d+.\\d+)\\)",
                         Pattern.MULTILINE);
     private final static Pattern POSN_PATTERN =
         Pattern.compile("^ ?\\[([<#>])\\]: ?#(?: ?\\((\\d+)\\))? *$",
                         Pattern.MULTILINE);
     private final static Pattern FILE_PATTERN =
-        Pattern.compile("([0-9]{4}).([0-9]{2}).([0-9]{2}).txt$");
+        Pattern.compile("([0-9]{4}).([0-9]{2}).([0-9]{2}).(txt|md)$");
 
     private final static String YEAR_DIR = "^[0-9]{4}$";
     private final static String MONTH_DIR = "^[0-9]{2}$";
-    private final static String DAY_FILE = "^[0-9]{2}.txt$";
+    private final static String DAY_FILE = "^[0-9]{2}.(txt|md)$";
 
+    private final static String YEAR_FORMAT = "%04d";
+    private final static String MONTH_FORMAT = "%02d";
+    private final static String DAY_FORMAT = "%02d.txt";
+    private final static String MD_FORMAT = "%02d.md";
+
+    private final static String ZIP = ".zip";
     private final static String HELP = "help.md";
     private final static String STYLES = "file:///android_asset/styles.css";
     private final static String SCRIPT = "file:///android_asset/script.js";
@@ -150,6 +167,8 @@ public class Diary extends Activity
     private final static String TEXT_CSS = "text/css";
     private final static String JS_SCRIPT = "js/script.js";
     private final static String TEXT_JAVASCRIPT = "text/javascript";
+    private final static String FILE_PROVIDER =
+        "org.billthefarmer.diary.fileprovider";
 
     private final static String MEDIA_TEMPLATE = "![%s](%s)\n";
     private final static String LINK_TEMPLATE = "[%s](%s)\n";
@@ -160,22 +179,26 @@ public class Diary extends Activity
     private final static String EVENT_TEMPLATE = "@:$1 $2";
     private final static String MAP_TEMPLATE =
         "<iframe width=\"560\" height=\"420\" " +
-        "src=\"http://www.openstreetmap.org/export/embed.html?" +
+        "src=\"https://www.openstreetmap.org/export/embed.html?" +
         "bbox=%f,%f,%f,%f&amp;layer=mapnik\">" +
         "</iframe><br/><small>" +
-        "<a href=\"http://www.openstreetmap.org/#map=16/%f/%f\">" +
+        "<a href=\"https://www.openstreetmap.org/#map=16/%f/%f\">" +
         "View Larger Map</a></small>\n";
     private final static String GEO_TEMPLATE = "![osm](geo:%f,%f)";
     private final static String POSN_TEMPLATE = "[#]: # (%d)";
+    private final static String EVENTS_TEMPLATE = "@:%s %s\n";
 
     private final static String BRACKET_CHARS = "([{<";
+    private final static String DIARY_IMAGE = "Diary.png";
 
     private final static String GEO = "geo";
     private final static String OSM = "osm";
     private final static String HTTP = "http";
+    private final static String TEXT = "text";
     private final static String HTTPS = "https";
     private final static String CONTENT = "content";
     private final static String TEXT_PLAIN = "text/plain";
+    private final static String IMAGE_PNG = "image/png";
     private final static String WILD_WILD = "*/*";
     private final static String IMAGE = "image";
     private final static String AUDIO = "audio";
@@ -185,11 +208,15 @@ public class Diary extends Activity
     private boolean markdown = true;
     private boolean external = false;
     private boolean useIndex = false;
+    private boolean useTemplate = false;
     private boolean copyMedia = false;
     private boolean darkTheme = false;
 
     private boolean changed = false;
     private boolean shown = true;
+
+    private boolean scrollUp = false;
+    private boolean scrollDn = false;
 
     private boolean multi = false;
     private boolean entry = false;
@@ -202,6 +229,7 @@ public class Diary extends Activity
     private boolean haveMedia = false;
 
     private long indexPage;
+    private long templatePage;
 
     private String folder = DIARY;
 
@@ -219,10 +247,14 @@ public class Diary extends Activity
     private SearchView searchView;
     private MenuItem searchItem;
 
+    private Runnable showEdit;
+    private Runnable showAccept;
+
     private GestureDetector gestureDetector;
 
     private Deque<Calendar> entryStack;
 
+    private Toast toast;
     private View accept;
     private View edit;
 
@@ -294,18 +326,10 @@ public class Diary extends Activity
 
             return text;
         }
+
         catch (Exception e) {}
 
         return null;
-    }
-
-    // setToMidnight
-    private static void setToMidnight(Calendar calendar)
-    {
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
     }
 
     // parseTime
@@ -342,13 +366,28 @@ public class Diary extends Activity
             for (File file : files)
             {
                 if (file.isFile() && file.getName().matches(DAY_FILE))
-                {
                     fileList.add(file);
-                }
+
+                else if (file.isDirectory())
+                    listEntries(file, fileList);
+            }
+    }
+
+    // listFiles
+    private static void listFiles(File directory, List<File> fileList)
+    {
+        // Get all entry files from a directory.
+        File[] files = directory.listFiles();
+        if (files != null)
+            for (File file : files)
+            {
+                if (file.isFile())
+                    fileList.add(file);
 
                 else if (file.isDirectory())
                 {
-                    listEntries(file, fileList);
+                    fileList.add(file);
+                    listFiles(file, fileList);
                 }
             }
     }
@@ -499,38 +538,6 @@ public class Diary extends Activity
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main, menu);
 
-        searchItem = menu.findItem(R.id.search);
-
-        // Set up search view and action expand listener
-        if (searchItem != null)
-        {
-            searchView = (SearchView) searchItem.getActionView();
-            searchItem.setOnActionExpandListener(new MenuItem
-                                                 .OnActionExpandListener()
-            {
-                @Override
-                public boolean onMenuItemActionCollapse(MenuItem item)
-                {
-                    invalidateOptionsMenu();
-                    return true;
-                }
-
-                @Override
-                public boolean onMenuItemActionExpand(MenuItem item)
-                {
-                    return true;
-                }
-            });
-        }
-
-        // Set up search view options and listener
-        if (searchView != null)
-        {
-            searchView.setSubmitButtonEnabled(true);
-            searchView.setImeOptions(EditorInfo.IME_ACTION_GO);
-            searchView.setOnQueryTextListener(new QueryTextListener());
-        }
-
         return true;
     }
 
@@ -548,7 +555,20 @@ public class Diary extends Activity
                                              today.get(Calendar.DATE));
         menu.findItem(R.id.nextEntry).setEnabled(nextEntry != null);
         menu.findItem(R.id.prevEntry).setEnabled(prevEntry != null);
+        menu.findItem(R.id.cancel).setVisible(changed);
         menu.findItem(R.id.index).setVisible(useIndex);
+
+        // Set up search view
+        searchItem = menu.findItem(R.id.search);
+        searchView = (SearchView) searchItem.getActionView();
+
+        // Set up search view options and listener
+        if (searchView != null)
+        {
+            searchView.setSubmitButtonEnabled(true);
+            searchView.setImeOptions(EditorInfo.IME_ACTION_GO);
+            searchView.setOnQueryTextListener(new QueryTextListener());
+        }
 
         // Show find all item
         if (menu.findItem(R.id.search).isActionViewExpanded())
@@ -568,6 +588,9 @@ public class Diary extends Activity
         case android.R.id.home:
             onBackPressed();
             break;
+        case R.id.cancel:
+            cancel();
+            break;
         case R.id.prevEntry:
             prevEntry();
             break;
@@ -586,8 +609,14 @@ public class Diary extends Activity
         case R.id.findAll:
             findAll();
             break;
+        case R.id.share:
+            share();
+            break;
         case R.id.addTime:
             addTime();
+            break;
+        case R.id.addEvents:
+            addEvents();
             break;
         case R.id.addMedia:
             addMedia();
@@ -597,6 +626,9 @@ public class Diary extends Activity
             break;
         case R.id.editScript:
             editScript();
+            break;
+        case R.id.backup:
+            backup();
             break;
         case R.id.settings:
             settings();
@@ -661,26 +693,27 @@ public class Diary extends Activity
             if (CONTENT.equalsIgnoreCase(uri.getScheme()))
                 uri = resolveContent(uri);
 
-            if (uri != null && !CONTENT.equalsIgnoreCase(uri.getScheme()))
+            if (uri != null)
             {
+                String type;
+
                 // Get type
-                String type = FileUtils.getMimeType(this, uri);
+                if (CONTENT.equalsIgnoreCase(uri.getScheme()))
+                    type = getContentResolver().getType(uri);
+
+                else
+                    type = FileUtils.getMimeType(this, uri);
 
                 if (type == null)
-                {
                     addLink(uri, uri.getLastPathSegment(), false);
 
-                }
                 else if (type.startsWith(IMAGE) ||
                          type.startsWith(AUDIO) ||
                          type.startsWith(VIDEO))
-                {
                     addMedia(uri, false);
-                }
+
                 else
-                {
                     addLink(uri, uri.getLastPathSegment(), false);
-                }
             }
         }
     }
@@ -718,38 +751,9 @@ public class Diary extends Activity
         return super.dispatchTouchEvent(event);
     }
 
+    // setListeners
     private void setListeners()
     {
-        if (textView != null)
-            textView.addTextChangedListener(new TextWatcher()
-        {
-            // afterTextChanged
-            @Override
-            public void afterTextChanged(Editable s)
-            {
-                // Text changed
-                changed = true;
-            }
-
-            // beforeTextChanged
-            @Override
-            public void beforeTextChanged(CharSequence s,
-                                          int start,
-                                          int count,
-                                          int after)
-            {
-            }
-
-            // onTextChanged
-            @Override
-            public void onTextChanged(CharSequence s,
-                                      int start,
-                                      int before,
-                                      int count)
-            {
-            }
-        });
-
         if (markdownView != null)
         {
             markdownView.setWebViewClient(new WebViewClient()
@@ -770,6 +774,7 @@ public class Diary extends Activity
                         setTitleDate(currEntry.getTime());
                         view.clearHistory();
                     }
+
                     else
                     {
                         if (view.canGoBack())
@@ -780,6 +785,7 @@ public class Diary extends Activity
                             if (view.getTitle() != null)
                                 setTitle(view.getTitle());
                         }
+
                         else
                         {
                             getActionBar().setDisplayHomeAsUpEnabled(false);
@@ -815,6 +821,12 @@ public class Diary extends Activity
                         return true;
                     }
 
+                    if (URLUtil.isFileUrl(url) || URLUtil.isAssetUrl(url))
+                    {
+                        entry = false;
+                        return false;
+                    }
+
                     // Use external browser
                     if (external)
                     {
@@ -830,11 +842,63 @@ public class Diary extends Activity
                 }
             });
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            {
+                showEdit = () ->
+                {
+                    startAnimation(edit, R.anim.fade_in, View.VISIBLE);
+                    scrollUp = false;
+                    scrollDn = false;
+                };
+
+                // onScrollChange
+                markdownView.setOnScrollChangeListener((v, x, y, oldX, oldY) ->
+                {
+                    // Scroll up
+                    if (y > oldY)
+                    {
+                        if (!scrollUp)
+                        {
+                            // Hide button
+                            // edit.setVisibility(View.INVISIBLE);
+                            startAnimation(edit, R.anim.fade_out,
+                                           View.INVISIBLE);
+
+                            // Set flags
+                            scrollUp = true;
+                            scrollDn = false;
+                        }
+
+                        // Show button delayed
+                        markdownView.removeCallbacks(showEdit);
+                        markdownView.postDelayed(showEdit, VISIBLE_DELAY);
+                    }
+
+                    else if (!scrollDn)
+                    {
+                        // Set flags
+                        scrollUp = false;
+                        scrollDn = true;
+
+                        // Show button
+                        if (edit.getVisibility() != View.VISIBLE)
+                        {
+                            // edit.setVisibility(View.VISIBLE);
+                            startAnimation(edit, R.anim.fade_in, View.VISIBLE);
+                            markdownView.removeCallbacks(showEdit);
+                        }
+                   }
+                });
+            }
+
             // On long click
             markdownView.setOnLongClickListener(v ->
             {
-                // Reveal button
-                edit.setVisibility(View.VISIBLE);
+                // Show button
+                if (edit.getVisibility() != View.VISIBLE)
+                    startAnimation(edit, R.anim.fade_in, View.VISIBLE);
+                scrollUp = false;
+                scrollDn = false;
                 return false;
             });
         }
@@ -855,6 +919,8 @@ public class Diary extends Activity
                     changed = false;
                     // Set flag
                     entry = true;
+                    // Update menu
+                    invalidateOptionsMenu();
                 }
 
                 // Animation
@@ -872,6 +938,8 @@ public class Diary extends Activity
             {
                 // Hide button
                 v.setVisibility(View.INVISIBLE);
+                scrollUp = true;
+                scrollDn = false;
                 return true;
             });
         }
@@ -887,6 +955,10 @@ public class Diary extends Activity
                 // Close text search
                 if (searchItem.isActionViewExpanded())
                     searchItem.collapseActionView();
+
+                // Check template
+                if (useTemplate)
+                    template();
 
                 // Scroll after delay
                 edit.postDelayed(() ->
@@ -911,12 +983,40 @@ public class Diary extends Activity
             {
                 // Hide button
                 v.setVisibility(View.INVISIBLE);
+                scrollUp = true;
+                scrollDn = false;
                 return true;
             });
         }
 
         if (textView != null)
         {
+            textView.addTextChangedListener(new TextWatcher()
+            {
+                // afterTextChanged
+                @Override
+                public void afterTextChanged(Editable s)
+                {
+                    // Text changed
+                    changed = true;
+                    invalidateOptionsMenu();
+                }
+
+                // beforeTextChanged
+                @Override
+                public void beforeTextChanged(CharSequence s,
+                                              int start,
+                                              int count,
+                                              int after) {}
+
+                // onTextChanged
+                @Override
+                public void onTextChanged(CharSequence s,
+                                          int start,
+                                          int before,
+                                          int count) {}
+            });
+
             // onFocusChange
             textView.setOnFocusChangeListener((v, hasFocus) ->
             {
@@ -930,15 +1030,74 @@ public class Diary extends Activity
             // On long click
             textView.setOnLongClickListener(v ->
             {
-                // Reveal button
-                accept.setVisibility(View.VISIBLE);
+                // Show button
+                if (accept.getVisibility() != View.VISIBLE)
+                    startAnimation(accept, R.anim.fade_in, View.VISIBLE);
+                scrollUp = false;
+                scrollDn = false;
                 return false;
             });
         }
+
+        if (scrollView != null)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            {
+                showAccept = () ->
+                {
+                    startAnimation(accept, R.anim.fade_in, View.VISIBLE);
+                    scrollUp = false;
+                };
+
+                // onScrollChange
+                scrollView.setOnScrollChangeListener((v, x, y, oldX, oldY) ->
+                {
+                    // Scroll up
+                    if (y > oldY)
+                    {
+                        if (!scrollUp)
+                        {
+                            // Hide button
+                            // accept.setVisibility(View.INVISIBLE);
+                            startAnimation(accept, R.anim.fade_out,
+                                           View.INVISIBLE);
+
+                            // Set flags
+                            scrollUp = true;
+                            scrollDn = false;
+                        }
+
+                        // Show button delayed
+                        scrollView.removeCallbacks(showAccept);
+                        scrollView.postDelayed(showAccept, VISIBLE_DELAY);
+                    }
+
+                    else if (!scrollDn)
+                    {
+                        // Set flags
+                        scrollUp = false;
+                        scrollDn = true;
+
+                        // Show button
+                        if (accept.getVisibility() != View.VISIBLE)
+                        {
+                            // accept.setVisibility(View.VISIBLE);
+                            startAnimation(accept, R.anim.fade_in,
+                                           View.VISIBLE);
+                            scrollView.removeCallbacks(showAccept);
+                        }
+                    }
+                });
+            }
+    }
+
+    // cancel
+    private void cancel()
+    {
+        load();
     }
 
     // animateAccept
-    public void animateAccept()
+    private void animateAccept()
     {
         // Animation
         layoutSwitcher.setDisplayedChild(MARKDOWN);
@@ -953,6 +1112,14 @@ public class Diary extends Activity
         buttonSwitcher.setDisplayedChild(ACCEPT);
     }
 
+    // startAnimation
+    private void startAnimation(View view, int anim, int visibility)
+    {
+        Animation animation = AnimationUtils.loadAnimation(this, anim);
+        view.startAnimation(animation);
+        view.setVisibility(visibility);
+    }
+
     // getPreferences
     private void getPreferences()
     {
@@ -960,17 +1127,20 @@ public class Diary extends Activity
         SharedPreferences preferences =
             PreferenceManager.getDefaultSharedPreferences(this);
 
-        custom = preferences.getBoolean(Settings.PREF_CUSTOM, true);
-        markdown = preferences.getBoolean(Settings.PREF_MARKDOWN, true);
-        external = preferences.getBoolean(Settings.PREF_EXTERNAL, false);
-        useIndex = preferences.getBoolean(Settings.PREF_USE_INDEX, false);
         copyMedia = preferences.getBoolean(Settings.PREF_COPY_MEDIA, false);
+        custom = preferences.getBoolean(Settings.PREF_CUSTOM, true);
         darkTheme = preferences.getBoolean(Settings.PREF_DARK_THEME, false);
+        external = preferences.getBoolean(Settings.PREF_EXTERNAL, false);
+        markdown = preferences.getBoolean(Settings.PREF_MARKDOWN, true);
+        useIndex = preferences.getBoolean(Settings.PREF_USE_INDEX, false);
+        useTemplate = preferences.getBoolean(Settings.PREF_USE_TEMPLATE, false);
 
         // Index page
         indexPage = preferences.getLong(Settings.PREF_INDEX_PAGE,
-                                         DatePickerPreference.DEFAULT_VALUE);
-
+                                        DatePickerPreference.DEFAULT_VALUE);
+        // Template page
+        templatePage = preferences.getLong(Settings.PREF_TEMPLATE_PAGE,
+                                           DatePickerPreference.DEFAULT_VALUE);
         // Folder
         folder = preferences.getString(Settings.PREF_FOLDER, DIARY);
     }
@@ -1377,12 +1547,14 @@ public class Diary extends Activity
                 layoutSwitcher.setDisplayedChild(MARKDOWN);
                 buttonSwitcher.setDisplayedChild(EDIT);
             }
+
             else
             {
                 layoutSwitcher.setDisplayedChild(EDIT_TEXT);
                 buttonSwitcher.setDisplayedChild(ACCEPT);
             }
         }
+
         else
         {
             layoutSwitcher.setDisplayedChild(EDIT_TEXT);
@@ -1404,10 +1576,10 @@ public class Diary extends Activity
     private void showCustomCalendarDialog(Calendar date)
     {
         CustomCalendarDialog dialog = new
-        CustomCalendarDialog(this, this,
-                             date.get(Calendar.YEAR),
-                             date.get(Calendar.MONTH),
-                             date.get(Calendar.DATE));
+            CustomCalendarDialog(this, this,
+                                 date.get(Calendar.YEAR),
+                                 date.get(Calendar.MONTH),
+                                 date.get(Calendar.DATE));
         // Show the dialog
         dialog.show();
 
@@ -1429,16 +1601,16 @@ public class Diary extends Activity
     private void showDatePickerDialog(Calendar date)
     {
         DatePickerDialog dialog = new
-        DatePickerDialog(this, this,
-                         date.get(Calendar.YEAR),
-                         date.get(Calendar.MONTH),
-                         date.get(Calendar.DATE));
+            DatePickerDialog(this, this,
+                             date.get(Calendar.YEAR),
+                             date.get(Calendar.MONTH),
+                             date.get(Calendar.DATE));
         // Show the dialog
         dialog.show();
     }
 
     // findAll
-    public void findAll()
+    private void findAll()
     {
         // Get search string
         String search = searchView.getQuery().toString();
@@ -1448,8 +1620,50 @@ public class Diary extends Activity
         findTask.execute(search);
     }
 
+    // share
+    @SuppressWarnings("deprecation")
+    private void share()
+    {
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        String title =
+            String.format("%s: %s", getString(R.string.appName), getTitle());
+        intent.putExtra(Intent.EXTRA_TITLE, title);
+        intent.putExtra(Intent.EXTRA_SUBJECT, title);
+        if (shown)
+        {
+            intent.setType(IMAGE_PNG);
+            View v = markdownView.getRootView();
+            v.setDrawingCacheEnabled(true);
+            Bitmap bitmap = Bitmap.createBitmap(v.getDrawingCache());
+            v.setDrawingCacheEnabled(false);
+
+            File image = new File(getCacheDir(), DIARY_IMAGE);
+            try (FileOutputStream out = new FileOutputStream(image))
+            {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 90, out);
+            }
+
+            catch (Exception e) {}
+            Uri imageUri = FileProvider
+                .getUriForFile(this, FILE_PROVIDER, image);
+            intent.putExtra(Intent.EXTRA_STREAM, imageUri);
+            intent.putExtra(Intent.EXTRA_TEXT, textView.getText());
+        }
+
+        else
+        {
+            intent.setType(TEXT_PLAIN);
+            Uri fileUri = FileProvider
+                .getUriForFile(this, FILE_PROVIDER, getFile());
+            intent.putExtra(Intent.EXTRA_STREAM, fileUri);
+            intent.putExtra(Intent.EXTRA_TEXT, textView.getText());
+        }
+
+        startActivity(Intent.createChooser(intent, null));
+    }
+
     // addTime
-    public void addTime()
+    private void addTime()
     {
         DateFormat format = DateFormat.getTimeInstance(DateFormat.SHORT);
         String time = format.format(new Date());
@@ -1459,8 +1673,30 @@ public class Diary extends Activity
         loadMarkdown();
     }
 
+    // addEvents
+    private void addEvents()
+    {
+        GregorianCalendar endTime = new
+            GregorianCalendar(currEntry.get(Calendar.YEAR),
+                              currEntry.get(Calendar.MONTH),
+                              currEntry.get(Calendar.DATE));
+        endTime.add(Calendar.DATE, 1);
+        QueryHandler.queryEvents(this, currEntry.getTimeInMillis(),
+                                 endTime.getTimeInMillis(),
+                                 (startTime, title) ->
+        {
+            DateFormat format = DateFormat.getTimeInstance(DateFormat.SHORT);
+            String time = format.format(startTime);
+            String event = String.format(EVENTS_TEMPLATE, time, title);
+            Editable editable = textView.getEditableText();
+            int position = textView.getSelectionStart();
+            editable.insert(position, event);
+            loadMarkdown();
+        });
+    }
+
     // addMedia
-    public void addMedia()
+    private void addMedia()
     {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1469,39 +1705,26 @@ public class Diary extends Activity
     }
 
     // editStyles
-    public void editStyles()
+    private void editStyles()
     {
         File file = new File(getHome(), CSS_STYLES);
-
-        // Get file provider uri
-        Uri uri = FileProvider.getUriForFile
-            (this, "org.billthefarmer.diary.fileprovider", file);
-        if (BuildConfig.DEBUG)
-            Log.d(TAG, "Path " + uri.getPath());
-
-        Intent intent = new Intent(Intent.ACTION_EDIT);
-        intent.setDataAndType(uri, TEXT_CSS);
-        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-        startActivity(intent);
+        Uri uri = Uri.fromFile(file);
+        startActivity(new Intent(Intent.ACTION_EDIT, uri, this, Editor.class));
     }
 
     // editScript
-    public void editScript()
+    private void editScript()
     {
         File file = new File(getHome(), JS_SCRIPT);
+        Uri uri = Uri.fromFile(file);
+        startActivity(new Intent(Intent.ACTION_EDIT, uri, this, Editor.class));
+    }
 
-        // Get file provider uri
-        Uri uri = FileProvider.getUriForFile
-            (this, "org.billthefarmer.diary.fileprovider", file);
-        if (BuildConfig.DEBUG)
-            Log.d(TAG, "Path " + uri.getPath());
-
-        Intent intent = new Intent(Intent.ACTION_EDIT);
-        intent.setDataAndType(uri, TEXT_JAVASCRIPT);
-        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-        startActivity(intent);
+    // backup
+    private void backup()
+    {
+        ZipTask zipTask = new ZipTask(this);
+        zipTask.execute();
     }
 
     // settings
@@ -1524,30 +1747,44 @@ public class Diary extends Activity
     private File getYear(int year)
     {
         return new File(getHome(), String.format(Locale.ENGLISH,
-                        "%04d", year));
+                                                 YEAR_FORMAT, year));
     }
 
     // getMonth
     private File getMonth(int year, int month)
     {
         return new File(getYear(year), String.format(Locale.ENGLISH,
-                        "%02d", month + 1));
+                                                     MONTH_FORMAT, month + 1));
     }
 
     // getDay
     private File getDay(int year, int month, int day)
     {
-        return new
-               File(getMonth(year, month), String.format(Locale.ENGLISH,
-                       "%02d.txt", day));
+        File folder = getMonth(year, month);
+        File file = new File(folder, String.format(Locale.ENGLISH,
+                                                   DAY_FORMAT, day));
+        if (file.exists())
+            return file;
+
+        else if (markdown)
+            return new File(folder, String.format(Locale.ENGLISH,
+                                                  MD_FORMAT, day));
+        else
+            return file;
     }
 
     // getFile
     private File getFile()
     {
-        return getDay(currEntry.get(Calendar.YEAR),
-                      currEntry.get(Calendar.MONTH),
-                      currEntry.get(Calendar.DATE));
+        return getFile(currEntry);
+    }
+
+    // getFile
+    private File getFile(Calendar entry)
+    {
+        return getDay(entry.get(Calendar.YEAR),
+                      entry.get(Calendar.MONTH),
+                      entry.get(Calendar.DATE));
     }
 
     // prevYear
@@ -1740,6 +1977,15 @@ public class Diary extends Activity
                     // Granted, load
                     load();
             break;
+
+        case REQUEST_TEMPLATE:
+            for (int i = 0; i < grantResults.length; i++)
+                if (permissions[i].equals(Manifest.permission
+                                          .READ_EXTERNAL_STORAGE) &&
+                    grantResults[i] == PackageManager.PERMISSION_GRANTED)
+                    // Granted, template
+                    template();
+            break;
         }
     }
 
@@ -1809,7 +2055,9 @@ public class Diary extends Activity
             {
                 alertDialog(R.string.appName, e.getMessage(),
                             android.R.string.ok);
-            }
+
+                e.printStackTrace();
+           }
         }
     }
 
@@ -1852,7 +2100,7 @@ public class Diary extends Activity
             }
         }
 
-        catch (Exception ignored) {}
+        catch (Exception e) {}
 
         return null;
     }
@@ -1878,6 +2126,7 @@ public class Diary extends Activity
         CharSequence text = read(getFile());
         textView.setText(text);
         changed = false;
+        invalidateOptionsMenu();
         if (markdown)
             loadMarkdown();
 
@@ -1970,8 +2219,10 @@ public class Diary extends Activity
         int month = date.get(Calendar.MONTH);
         int day = date.get(Calendar.DATE);
 
-        Calendar today = Calendar.getInstance();
-        setToMidnight(today);
+        Calendar calendar = Calendar.getInstance();
+        Calendar today = new GregorianCalendar(calendar.get(Calendar.YEAR),
+                                               calendar.get(Calendar.MONTH),
+                                               calendar.get(Calendar.DATE));
 
         prevEntry = getPrevEntry(year, month, day);
         if ((prevEntry == null || today.compareTo(prevEntry) > 0) &&
@@ -2028,6 +2279,12 @@ public class Diary extends Activity
         setDate(date);
         load();
 
+        if (markdown && !shown)
+        {
+            animateAccept();
+            shown = true;
+        }
+
         entry = true;
     }
 
@@ -2054,6 +2311,10 @@ public class Diary extends Activity
                                                calendar.get(Calendar.DATE));
         entryStack.clear();
         changeDate(today);
+
+        // Check template
+        if (useTemplate && !markdown)
+            template();
     }
 
     // index
@@ -2063,6 +2324,37 @@ public class Diary extends Activity
         Calendar index = Calendar.getInstance();
         index.setTimeInMillis(indexPage);
         changeDate(index);
+    }
+
+    // template
+    private void template()
+    {
+        // No template if not empty
+        if (textView.length() > 0)
+            return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED)
+            {
+                requestPermissions(new String[]
+                    {Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                     Manifest.permission.READ_EXTERNAL_STORAGE,
+                     Manifest.permission.WRITE_CALENDAR,
+                     Manifest.permission.READ_CALENDAR}, REQUEST_TEMPLATE);
+
+                return;
+            }
+        }
+
+        Calendar template = Calendar.getInstance();
+        template.setTimeInMillis(templatePage);
+        CharSequence text = read(getFile(template));
+        textView.setText(text);
+
+        if (markdown)
+            loadMarkdown();
     }
 
     // addMedia
@@ -2076,11 +2368,11 @@ public class Diary extends Activity
         {
             // Get type
             String type = FileUtils.getMimeType(this, media);
-            if (type.startsWith(IMAGE))
+            if (type != null && type.startsWith(IMAGE))
             {
                 File newMedia = new
-                File(getCurrent(), UUID.randomUUID().toString() +
-                     FileUtils.getExtension(media.toString()));
+                    File(getCurrent(), UUID.randomUUID().toString() +
+                         FileUtils.getExtension(media.toString()));
                 File oldMedia = FileUtils.getFile(this, media);
                 try
                 {
@@ -2090,7 +2382,7 @@ public class Diary extends Activity
                     media = Uri.parse(newName);
                 }
 
-                catch (Exception ignored) {}
+                catch (Exception e) {}
             }
         }
 
@@ -2210,6 +2502,26 @@ public class Diary extends Activity
 
         prevMonth.add(Calendar.MONTH, -1);
         return prevMonth;
+    }
+
+    // showToast
+    void showToast(int id)
+    {
+        String text = getString(id);
+        showToast(text);
+    }
+
+    // showToast
+    void showToast(String text)
+    {
+        // Cancel the last one
+        if (toast != null)
+            toast.cancel();
+
+        // Make a new one
+        toast = Toast.makeText(this, text, Toast.LENGTH_SHORT);
+        toast.setGravity(Gravity.CENTER, 0, 0);
+        toast.show();
     }
 
     // animateSwipeLeft
@@ -2346,6 +2658,109 @@ public class Diary extends Activity
         }
     }
 
+    // ZipTask
+    private static class ZipTask
+            extends AsyncTask<Void, Void, Void>
+    {
+        private WeakReference<Diary> diaryWeakReference;
+        private String search;
+
+        // ZipTask
+        public ZipTask(Diary diary)
+        {
+            diaryWeakReference = new WeakReference<>(diary);
+        }
+
+        // onPreExecute
+        @Override
+        protected void onPreExecute()
+        {
+            final Diary diary = diaryWeakReference.get();
+            if (diary != null)
+                diary.showToast(R.string.start);
+        }
+
+        // doInBackground
+        @Override
+        protected Void doInBackground(Void... noparams)
+        {
+            final Diary diary = diaryWeakReference.get();
+            if (diary == null)
+                return null;
+
+            File home = diary.getHome();
+
+            // Create output stream
+            try (ZipOutputStream output = new
+                 ZipOutputStream(new FileOutputStream(home.getPath() + ZIP)))
+            {
+                byte[] buffer = new byte[BUFFER_SIZE];
+
+                // Get entry list
+                List<File> files = new ArrayList<>();
+                listFiles(home, files);
+
+                for (File file: files)
+                {
+                    // Get path
+                    String path = file.getPath();
+                    path = path.substring(home.getPath().length() + 1);
+
+                    if (file.isDirectory())
+                    {
+                        ZipEntry entry = new ZipEntry(path + File.separator);
+                        entry.setMethod(ZipEntry.STORED);
+                        entry.setTime(file.lastModified());
+                        entry.setSize(0);
+                        entry.setCompressedSize(0);
+                        entry.setCrc(0);
+                        output.putNextEntry(entry);
+                    }
+
+                    else if (file.isFile())
+                    {
+                        ZipEntry entry = new ZipEntry(path);
+                        entry.setMethod(ZipEntry.DEFLATED);
+                        entry.setTime(file.lastModified());
+                        output.putNextEntry(entry);
+
+                        try (BufferedInputStream input = new
+                             BufferedInputStream(new FileInputStream(file)))
+                        {
+                            while (input.available() > 0)
+                            {
+                                int size = input.read(buffer);
+                                output.write(buffer, 0, size);
+                            }
+                        }
+                    }
+                }
+
+                // Close last entry
+                output.closeEntry();
+            }
+
+            catch (Exception e)
+            {
+                diary.runOnUiThread (() ->
+                    diary.alertDialog(R.string.appName, e.getMessage(),
+                                      android.R.string.ok));
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        // onPostExecute
+        @Override
+        protected void onPostExecute(Void noresult)
+        {
+            final Diary diary = diaryWeakReference.get();
+            if (diary != null)
+                diary.showToast(R.string.complete);
+        }
+    }
+
     // FindTask
     private static class FindTask
             extends AsyncTask<String, Void, List<String>>
@@ -2353,6 +2768,7 @@ public class Diary extends Activity
         private WeakReference<Diary> diaryWeakReference;
         private String search;
 
+        // FindTask
         public FindTask(Diary diary)
         {
             diaryWeakReference = new WeakReference<>(diary);
@@ -2433,7 +2849,7 @@ public class Diary extends Activity
                                                      FIND_DELAY);
                     }
 
-                    catch (Exception ignored) {}
+                    catch (Exception e) {}
                 });
             }
 
@@ -2606,9 +3022,68 @@ public class Diary extends Activity
                 multi = false;
             }
 
-            catch (Exception ignored) {}
+            catch (Exception e) {}
 
             return result;
+        }
+
+        // onDoubleTap
+        @Override
+        public boolean onDoubleTap(MotionEvent e)
+        {
+            if (shown)
+            {
+                int[] l = new int[2];
+                markdownView.getLocationOnScreen(l);
+
+                // Get tap position
+                float y = e.getY();
+                y -= l[1];
+
+                int scrollY = markdownView.getScrollY();
+                int contentHeight = markdownView.getContentHeight();
+                float density = getResources().getDisplayMetrics().density;
+
+                // Get markdown position
+                final float p = (y + scrollY) / (contentHeight * density);
+
+                // Remove callbacks
+                if (showEdit != null)
+                    markdownView.removeCallbacks(showEdit);
+
+                // Animation
+                animateEdit();
+
+                // Close text search
+                if (searchItem.isActionViewExpanded())
+                    searchItem.collapseActionView();
+
+                // Scroll after delay
+                textView.postDelayed(() ->
+                {
+                    int h = textView.getLayout().getHeight();
+                    int v = Math.round(h * p);
+
+                    // Get line
+                    int line = textView.getLayout().getLineForVertical(v);
+                    int offset = textView.getLayout()
+                        .getOffsetForHorizontal(line, 0);
+                    textView.setSelection(offset);
+
+                    // get text position
+                    int position = textView.getLayout().getLineBaseline(line);
+
+                    // Scroll to it
+                    int height = scrollView.getHeight();
+                    scrollView.smoothScrollTo(0, position - height / 2);
+                }, POSITION_DELAY);
+
+                shown = false;
+
+                return true;
+            }
+
+            return false;
         }
     }
 

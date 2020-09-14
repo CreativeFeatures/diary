@@ -5,7 +5,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.4.1'
+        classpath 'com.android.tools.build:gradle:4.0.0'
     }
 }
 
@@ -25,14 +25,14 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+    buildToolsVersion '29.0.3'
 
     defaultConfig {
         applicationId "org.billthefarmer.diary"
         minSdkVersion 14
         targetSdkVersion 28
-        versionName "1.50"
-        versionCode 150
+        versionName "1.70"
+        versionCode 170
 
         buildConfigField "long", "BUILT", System.currentTimeMillis() + "L"
     }
@@ -44,12 +44,12 @@ android {
 
     lintOptions {
         disable 'IconDensities', 'ContentDescription', 'SetJavaScriptEnabled',
-            'IconDuplicates'
+            'IconDuplicates', 'UnusedAttribute', 'OldTargetApi'
         // abortOnError false
     }
 }
 
 dependencies {
     implementation 'com.github.billthefarmer:CustomCalendarView:v1.05'
-    implementation 'com.github.billthefarmer:MarkdownView:v1.03'
+    implementation 'com.github.billthefarmer:MarkdownView:v1.04'
 }

@@ -21,15 +21,22 @@
 
 package org.billthefarmer.diary;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 
@@ -45,9 +52,11 @@ public class Editor extends Activity
     public final static String CHANGED = "changed";
     public final static String CONTENT = "content";
 
-    private final static int BUFFER_SIZE = 1024;
+    private final static int REQUEST_READ = 1;
+    private final static int REQUEST_WRITE = 2;
 
     private File file;
+    private Uri uri;
 
     private EditText textView;
 
@@ -76,7 +85,7 @@ public class Editor extends Activity
         textView = findViewById(R.id.text);
 
         Intent intent = getIntent();
-        Uri uri = intent.getData();
+        uri = intent.getData();
 
         if (uri != null)
         {
@@ -102,46 +111,72 @@ public class Editor extends Activity
     // setListeners
     private void setListeners()
     {
+        ImageButton accept = findViewById(R.id.accept);
 
         if (textView != null)
+        {
+            // Text changed
             textView.addTextChangedListener(new TextWatcher()
-        {
-            // afterTextChanged
-            @Override
-            public void afterTextChanged(Editable s)
             {
-                changed = true;
-                invalidateOptionsMenu();
-            }
+                // afterTextChanged
+                @Override
+                public void afterTextChanged(Editable s)
+                {
+                    changed = true;
+                    invalidateOptionsMenu();
+                }
 
-            // beforeTextChanged
-            @Override
-            public void beforeTextChanged(CharSequence s,
+                // beforeTextChanged
+                @Override
+                public void beforeTextChanged(CharSequence s,
+                                              int start,
+                                              int count,
+                                              int after) {}
+
+                // onTextChanged
+                @Override
+                public void onTextChanged(CharSequence s,
                                           int start,
-                                          int count,
-                                          int after)
-            {
-            }
+                                          int before,
+                                          int count) {}
+            });
 
-            // onTextChanged
-            @Override
-            public void onTextChanged(CharSequence s,
-                                      int start,
-                                      int before,
-                                      int count)
+            // On long click
+            textView.setOnLongClickListener(v ->
             {
-            }
-        });
+                // Reveal button
+                accept.setVisibility(View.VISIBLE);
+                return false;
+            });
+        }
 
-        ImageButton accept = findViewById(R.id.accept);
-        // On click
-        accept.setOnClickListener(v ->
+        if (accept != null)
         {
-            CharSequence text = textView.getText();
-            if (changed)
-                write(text, file);
-            finish();
-        });
+            // On click
+            accept.setOnClickListener(v ->
+            {
+                if (changed)
+                {
+                    CharSequence text = textView.getText();
+                    write(text, file);
+                }
+
+                // Hide keyboard
+                InputMethodManager imm = (InputMethodManager)
+                    getSystemService(INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(textView.getWindowToken(), 0);
+
+                finish();
+            });
+
+            // On long click
+            accept.setOnLongClickListener(v ->
+            {
+                // Hide button
+                v.setVisibility(View.INVISIBLE);
+                return true;
+            });
+        }
     }
 
     // onRestoreInstanceState
@@ -149,7 +184,6 @@ public class Editor extends Activity
     public void onRestoreInstanceState(Bundle savedInstanceState)
     {
         super.onRestoreInstanceState(savedInstanceState);
-
         changed = savedInstanceState.getBoolean(CHANGED);
     }
 
@@ -170,6 +204,7 @@ public class Editor extends Activity
             onBackPressed();
             return true;
         }
+
         else
         {
             return super.onOptionsItemSelected(item);
@@ -180,7 +215,66 @@ public class Editor extends Activity
     @Override
     public void onBackPressed()
     {
-        finish();
+        // Hide keyboard
+        InputMethodManager imm = (InputMethodManager)
+            getSystemService(INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(textView.getWindowToken(), 0);
+
+        if (changed)
+            alertDialog(R.string.appName, R.string.changes,
+                        R.string.save, R.string.discard, (dialog, id) ->
+        {
+            switch (id)
+            {
+            case DialogInterface.BUTTON_POSITIVE:
+                CharSequence text = textView.getText();
+                write(text, file);
+                finish();
+                break;
+
+            case DialogInterface.BUTTON_NEGATIVE:
+                changed = false;
+                finish();
+                break;
+            }
+        });
+
+        else
+            finish();
+    }
+
+    // onRequestPermissionsResult
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String[] permissions,
+                                           int[] grantResults)
+    {
+        switch (requestCode)
+        {
+        case REQUEST_WRITE:
+            for (int i = 0; i < grantResults.length; i++)
+                if (permissions[i].equals(Manifest.permission
+                                          .WRITE_EXTERNAL_STORAGE) &&
+                    grantResults[i] == PackageManager.PERMISSION_GRANTED)
+                {
+                    // Granted, write
+                    CharSequence text = textView.getText();
+                    write(text, file);
+                }
+            break;
+
+        case REQUEST_READ:
+            for (int i = 0; i < grantResults.length; i++)
+                if (permissions[i].equals(Manifest.permission
+                                          .READ_EXTERNAL_STORAGE) &&
+                    grantResults[i] == PackageManager.PERMISSION_GRANTED)
+                {
+                    // Granted, read
+                    CharSequence text = read(uri);
+                    textView.setText(text);
+                }
+            break;
+        }
     }
 
     // resolveContent
@@ -191,20 +285,65 @@ public class Editor extends Activity
         if (path != null)
         {
             File file = new File(path);
-            if (file.canRead())
-                uri = Uri.fromFile(file);
+            uri = Uri.fromFile(file);
         }
 
         return uri;
+    }
+
+    // alertDialog
+    private void alertDialog(int title, int message,
+                             int positiveButton, int negativeButton,
+                             DialogInterface.OnClickListener listener)
+    {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title);
+        builder.setMessage(message);
+
+        // Add the buttons
+        builder.setPositiveButton(positiveButton, listener);
+        builder.setNegativeButton(negativeButton, listener);
+
+        // Create the AlertDialog
+        builder.show();
+    }
+
+    // alertDialog
+    private void alertDialog(int title, String message,
+                             int neutralButton)
+    {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title);
+        builder.setMessage(message);
+
+        // Add the button
+        builder.setNeutralButton(neutralButton, null);
+
+        // Create the AlertDialog
+        builder.show();
     }
 
     // read
     private CharSequence read(Uri uri)
     {
         StringBuilder stringBuilder = new StringBuilder();
-        try (BufferedReader reader =
-             new BufferedReader(new InputStreamReader(getContentResolver()
-                                                      .openInputStream(uri))))
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED)
+            {
+                requestPermissions(new String[]
+                    {Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                     Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_READ);
+
+                return stringBuilder;
+            }
+        }
+
+        try (BufferedReader reader = new
+             BufferedReader(new InputStreamReader(getContentResolver()
+                                                  .openInputStream(uri))))
         {
             String line;
             while ((line = reader.readLine()) != null)
@@ -223,6 +362,19 @@ public class Editor extends Activity
     // write
     private void write(CharSequence text, File file)
     {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+        {
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED)
+            {
+                requestPermissions(new String[]
+                    {Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                     Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_WRITE);
+
+                return;
+            }
+        }
+
         if (file != null)
         {
             file.getParentFile().mkdirs();
@@ -231,8 +383,13 @@ public class Editor extends Activity
                 fileWriter.append(text);
                 fileWriter.close();
             }
+
             catch (IOException e)
             {
+                alertDialog(R.string.appName, e.getMessage(),
+                            android.R.string.ok);
+
+                e.printStackTrace();
             }
         }
     }

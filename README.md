@@ -1,4 +1,5 @@
-# ![Logo](src/main/res/drawable-hdpi/ic_launcher.png) Diary [![Build Status](https://travis-ci.org/billthefarmer/diary.svg?branch=master)](https://travis-ci.org/billthefarmer/diary) [![Available on F-Droid](https://f-droid.org/wiki/images/c/ca/F-Droid-button_available-on_smaller.png)](https://f-droid.org/packages/org.billthefarmer.diary)
+# ![Logo](src/main/res/drawable-hdpi/ic_launcher.png) Diary [![Build Status](https://travis-ci.org/billthefarmer/diary.svg?branch=master)](https://travis-ci.org/billthefarmer/diary) [![Release](https://img.shields.io/github/release/billthefarmer/diary.svg?logo=github)](https://github.com/billthefarmer/diary/releases) [![Available on F-Droid](https://f-droid.org/wiki/images/c/ca/F-Droid-button_available-on_smaller.png)](https://f-droid.org/packages/org.billthefarmer.diary)
+
 
 Diary is an innovative app where you could put your personal notes or
 personal journals every day. It's one of the best choices out there!
@@ -35,21 +36,15 @@ file and an example
 [script](https://github.com/billthefarmer/diary/blob/master/data/script.md)
 file, which may be copied in to an entry for reference if required.
 
-### Caution - check diary folder
-I had a request
-[#15](https://github.com/billthefarmer/diary/issues/15) to add an
-option to change the Diary storage folder, which was duly added. Not
-foreseeing potential future side effects I used the app name for the
-default value of the option, which was already set in the code. Since
-then I have gratefully received several language translations, some of
-which have changed the app name for that language. This has had the
-result of some users
-[#24](https://github.com/billthefarmer/diary/issues/24),
-[#29](https://github.com/billthefarmer/diary/issues/29) apparently
-losing their entries when they upgraded, or possibly uninstalled and
-reinstalled the app, which resets the settings. If this happens, check
-the folder option and either change it back or move your entries with
-a file manager.
+### Playing video
+Recent versions of Android may not play videos in diary entries added
+using the **Add media** function. This is due to an apparent defect in
+the android
+[WebView](https://developer.android.com/reference/android/webkit/WebView)
+component. There is a [Android System
+WebView](https://play.google.com/store/apps/details?id=com.google.android.webview)
+system component in [Google Play](https://play.google.com/store), but
+installing it does not seem to help.
 
 * Entries saved in plain text files
 * Browse entries
@@ -58,31 +53,40 @@ a file manager.
 * Choice of date picker calendars
 * Diary entries may use markdown formatting
 * Optional index page
+* Optional entry template
 * Display media stored in diary folders
-* Display [OpenStreetMap](http://www.openstreetmap.org) maps
+* Display [OpenStreetMap](https://www.openstreetmap.org) maps
+* Share diary entries
 * Add media from media providers
 * Receive media from other apps
 * Receive geo uris from other apps
 * Incremental search of diary entries
 * Add events to calendar
+* Add events from calendar
 * Dark or light theme for editing
+* Back up entries to a zip file
 * Optional edit cursor position control
 
 ## Toolbar
-The toolbar icons are, from left to right:
+The toolbar buttons are, from left to right:
 
-* **Previous** - show the previous entry or today
-* **Next** - show the next entry or today if next
-* **Today** - show today's entry
-* **Go to date** - show a date picker calendar to select a new date
-* **Index** - go to index page if set
-* **Search** - incremental search of diary entry
-* **Find all** - find all diary entries containing search text
-* **Add time** - Add the current time to diary entry
-* **Add media** - show a media picker to select media
-* **Edit styles** - show an editor to edit the custom styles
-* **Edit script** - show an editor to edit custom javascript
-* **Settings** - show the settings
+* **Cancel** &ndash; cancel edits of current entry
+* **Previous** &ndash; show the previous entry or today
+* **Next** &ndash; show the next entry or today if next
+* **Today** &ndash; show today's entry
+* **Go to date** &ndash; show a date picker calendar to select a new date
+* **Index** &ndash; go to index page if set
+* **Search** &ndash; incremental search of diary entry
+* **Find all** &ndash; find all diary entries containing search text
+* **Share** &ndash; share current diary entry
+* **Use template** &ndash; use template for current entry if empty
+* **Add time** &ndash; add the current time to diary entry
+* **Add events** &ndash; add calendar events to diary entry
+* **Add media** &ndash; show a media picker to select media
+* **Edit styles** &ndash; show an editor to edit the custom styles
+* **Edit script** &ndash; show an editor to edit custom javascript
+* **Backup** &ndash; backup entries to a zip file
+* **Settings** &ndash; show the settings
 
 Depending on the device and orientation, some items may be on the
 menu.
@@ -96,19 +100,29 @@ Swipe up and down with two fingers in the diary page will show the
 previous or next month, or in the custom calendar will show the
 previous or next year.
 
+## Double tap
+In the formatted view a double tap on the screen will switch to the
+edit view in approximately the same position in the markdown text. The
+accuracy is dependent on the text formatting and media in the entry.
+
 ## Editing
 In markdown mode the **Edit** button floating above the page allows
 editing entries. The **Accept** button restores the formatted view. A
 long touch on the button hides it until the device is rotated or a
-long touch on the page.
+long touch on the page. The **Cancel** button cancels edits to the
+current entry. It will appear only when there are changes to cancel.
 
 See [Markdown](https://daringfireball.net/projects/markdown) for
 markdown syntax.
 
+## Scrolling
+Scrolling the page up will temporarily hide the floating
+button. Scrolling down restores it.
+
 ## Search
 You may search diary entries, the search will update as text is
 entered into the search field. Use the search widget or keyboard
-action button for find next.
+action button to find the next match.
 
 ## Find all
 You may find all diary entries that contain the current search
@@ -120,6 +134,11 @@ text to find the desired entry.
 ## Index
 You may use an index page. If an index page is set the app will start
 on that page unless receiving media from another app.
+
+## Template
+You may use an entry template. If a template is set it will be copied
+to today's entry if it is empty. Use the menu item to copy the template
+to the current entry if it is empty.
 
 ## Text
 You may receive text clips from another app. A date picker will pop
@@ -138,7 +157,22 @@ media will be appended to the selected page. Content URIs
 to file URIs (`file:///`) if possible. Media will be added using
 markdown image syntax (`![<name>](<url>)`), which will be parsed into
 an HTML5 media player, text clips will be added as above, URLs will be
-added as a link.
+added as a link. Media added from removable SD cards not part of the
+device storage may work but may not be persistent and is not supported.
+
+## LaTeX
+Diary doesn't support [LaTeX](https://en.wikipedia.org/wiki/LaTeX),
+but it is possible to use an external site to add LaTeX formatted
+images.
+
+    ![Math](http://www.sciweavers.org/tex2img.php?eq=\sum_{i=1}^{n}x_{i}^{2}&bc=cornsilk&fc=black&im=jpg&fs=24&ff=arev)
+
+    \sum_{i=1}^{n}x_{i}^{2}
+
+![Math](http://www.sciweavers.org/tex2img.php?eq=\sum_{i=1}^{n}x_{i}^{2}&bc=cornsilk&fc=black&im=jpg&fs=24&ff=arev)
+
+If you don't intend to change the image, you can copy it and use that
+instead, which will then work offline.
 
 ## Links
 You may put links in diary pages, so
@@ -154,17 +188,10 @@ through diary entries and external web pages. Use the **Today** button
 to clear the navigation entries.
 
 ## Maps
-You may put [OpenStreetMap](http://www.openstreetmap.org) maps in
-diary pages with the syntax `[<lat>,<lng>]`, or
-`[osm:<lat>,<lng>]`. Because of differing conventions in different
-locales, the app parser will accept a comma or a dot (`[,.]`) for the
-decimal point, and a comma or a semicolon (`[,;]`) for the co-ordinate
-separator. Use the correct convention for your locale. Geo uris
-received from other apps will be converted to `[osm](<lat>,<lng>)`
-syntax in the diary entry. Diary entries using `[<lat>,<lng>]` syntax
-will be converted to geo uri syntax. **Caution** - geo uris use a
-period (`[.]`) for a decimal point and a comma (`[,]`) for the
-co-ordinate separator regardless of locale.
+You may put [OpenStreetMap](https://www.openstreetmap.org) maps in
+diary pages with a geo URI `![osm](geo:<lat>,<lng>)`. Geo uris
+received from other apps will be converted to
+`![osm](geo:<lat>,<lng>)` syntax in the diary entry.
 
 ## Events
 You may add an event to the calendar by adding a line to a diary entry
@@ -173,7 +200,9 @@ which begins with an 'at' symbol followed by a time and an event title
 entry is saved. A colon will be added after the 'at' symbol when the
 event has been added `@:10:30 Dentist`. Use the Calendar app to remove
 or edit events. Do not remove the colon from the diary entry or the
-event will be added again.
+event will be added again. You may add events from the calendar to the
+current diary entry. Events will be added from the relevant calendar
+date.
 
 ## Cursor position
 You may put a line in an entry to control or remember the edit cursor
@@ -185,7 +214,7 @@ the entry is saved `[#]: # (nnn)`. Because entries are only saved if
 they are changed, moving the cursor with no other change will not move
 the saved position.
 
-**Note** - Using this functionality will not stop reference type links
+**Note** &ndash; Using this functionality will not stop reference type links
 to the top of the current entry, `[Top][#]` working. However you can
 more simply use an inline link `[Top](#)`.
 
@@ -193,9 +222,10 @@ more simply use an inline link `[Top](#)`.
 You may add custom styles to the markdown formatting by placing a
 `styles.css` file in the `Diary/css` folder, which will replace the
 built in styles file which simply limits the width of images to the
-page width. Use the built in editor to create a styles file.
+page width. Use the built in editor to create a styles file. You must
+use the editor `accept` tick button to save the edits.
 
-**Caution** - There is no such thing as a markdown syntax error, but
+**Caution** &ndash; There is no such thing as a markdown syntax error, but
 syntax errors in a styles file may cause unpredictable results and
 affect all diary pages. See
 [CSS Tutorial](https://www.w3schools.com/Css).
@@ -208,8 +238,8 @@ the first line.
 ## Javascript
 You may add custom javascript to be loaded into all diary pages by
 placing a `script.js` file in the `Diary/js` folder. Use the built in
-editor to create a script file. Errors in the script will be logged by
-the
+editor to create a script file. You must use the editor `accept` tick
+button to save the edits. Errors in the script will be logged by the
 [WebView](https://developer.android.com/reference/android/webkit/WebView)
 which displays the page. See
 [Javascript tutorial](https://www.w3schools.com/js).
@@ -219,14 +249,32 @@ might be a good idea to use the Google
 [Closure Compiler](https://developers.google.com/closure/compiler) to
 check and minimise your code. It will handle multiple input files.
 
+## Backup
+You may create a backup of all your entries in a zip file. The file
+will have the same name as the diary folder, default `Diary.zip`.
+
+## Sync
+Android cloud storage apps when last tested appeared not to be capable
+of syncing a real storage folder on the device. However
+[Syncthing](https://syncthing.net) does just that and can sync your
+diary folder with other devices and desktop computers.
+
+## Removable SD cards
+Android allows removable SD cards to be used like a USB stick or as
+part of the device storage. Storing diary entries on a removable SD
+card not part of the device storage may work on some devices, but is
+not supported. Adding media may also work, but may not be persistent.
+
 ## Settings
-* **Use custom calendar** - Use custom calendar that shows diary
+* **Use custom calendar** &ndash; Use custom calendar that shows diary
   entries rather than date picker calendar
-* **Use markdown** - Use markdown formatting for diary entries
-* **Folder** - Change diary entry storage folder. Caution - diary
-  entries and styles will not be moved
-* **Index** - Set an index page. Use the date picker to choose a date.
-* **Browser** - Use browser for external links
-* **Copy images** - Copy images to current folder
-* **Dark theme** - Use dark theme for editing
-* **About** - Show app version, licence and credits
+* **Use markdown** &ndash; Use markdown formatting for diary entries
+* **Folder** &ndash; Change diary entry storage folder. Caution &ndash;
+    diary entries and styles will not be moved
+* **Index** &ndash; Set an index page. Use the date picker to choose a date.
+* **Template** &ndash; Set a template page. Use the date picker to
+    choose a date.
+* **Browser** &ndash; Use browser for external links
+* **Copy images** &ndash; Copy images to current folder
+* **Dark theme** &ndash; Use dark theme for editing
+* **About** &ndash; Show app version, licence and credits

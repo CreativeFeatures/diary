@@ -26,10 +26,18 @@
   <string name="goToDate">前往…</string>
   <string name="search">搜索…</string>
   <string name="findAll">全局搜索…</string>
+  <string name="share">"分享…"</string>
   <string name="addTime">添加时间</string>
+  <string name="addEvents">新增活动</string>
   <string name="addMedia">添加媒体…</string>
   <string name="editStyles">编辑样式…</string>
   <string name="editScript">编辑脚本…</string>
+  <string name="backup">后备</string>
+  <string name="start">开始备份</string>
+  <string name="complete">备份完成</string>
+  <string name="changes">保存更改？</string>
+  <string name="save">救</string>
+  <string name="discard">丢弃</string>
   <string name="settings">设置</string>
   <string name="calendar">日历</string>
   <string name="pref_calendar">使用内置日历</string>
@@ -57,19 +65,25 @@
     使用期刊的索引页面
   </string>
   <string name="pref_index_page">索引页</string>
+  <string name="template">模板</string>
+  <string name="pref_use_template">使用模板</string>
+  <string name="pref_use_template_summ">
+    使用模板输入日记
+  </string>
+  <string name="pref_template_page">模板页面</string>
   <string name="theme">主题</string>
   <string name="pref_dark_theme">暗色</string>
   <string name="pref_dark_theme_summ">
     编辑时使用暗色主题
   </string>
   <string name="about">关于</string>
-  <string name="pref_about_summ">Diary <a href="https://github.com/billthefarmer/diary/releases/latest">版本 %s</a></string>
+  <string name="pref_about_summ"><a href="https://github.com/billthefarmer/diary/releases/latest">版本 %s</a></string>
   <string name="built">构建时间 %s</string>
   <string name="licence">许可证 <a href="https://www.gnu.org/licenses/gpl.txt">GNU GPLv3</a>
   </string>
   <string name="copyright">\u00A9 2012 <a href="mailto:hola@josep-portella.com">Josep Portella
-  Florit</a> 著作权所有\n\u00A9 2017 <a href="https://billthefarmer.github.io">Bill Farmer</a> 著作权所有\n第三方日历来自 <a href="https://github.com/npanigrahy/Custom-Calendar-View">Custom
-  Calendar View</a>\nMarkdown 视图来自 <a href="https://github.com/falnatsheh/MarkdownView">Markdown
-  View</a>\n简体中文翻译来自 <a href="https://github.com/Therhokar">Therhokar Yang</a>\n文件工具来自 <a href="https://github.com/iPaulPro">Paul Burke</a>
+  Florit</a>\n著作权所有\n\u00A9 2017 <a href="https://billthefarmer.github.io">Bill Farmer</a>\n\n著作权所有, 第三方日历来自 <a href="https://github.com/npanigrahy/Custom-Calendar-View">Custom
+  Calendar View</a>, Markdown 视图来自 <a href="https://github.com/falnatsheh/MarkdownView">Markdown
+  View</a>, 简体中文翻译来自 <a href="https://github.com/Therhokar">Therhokar Yang</a>, 文件工具来自 <a href="https://github.com/iPaulPro">Paul Burke</a>
   </string>
 </resources>

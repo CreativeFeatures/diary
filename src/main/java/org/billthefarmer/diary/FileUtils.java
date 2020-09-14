@@ -182,12 +182,12 @@ public class FileUtils
                 String filepath = file.getAbsolutePath();
 
                 // Construct path without file name.
-                String pathwithoutname = filepath.substring(0,
-                                         filepath.length() - filename.length());
+                String pathwithoutname = filepath.substring
+                    (0, filepath.length() - filename.length());
                 if (pathwithoutname.endsWith("/"))
                 {
                     pathwithoutname = pathwithoutname
-                                      .substring(0, pathwithoutname.length() - 1);
+                        .substring(0, pathwithoutname.length() - 1);
                 }
                 return new File(pathwithoutname);
             }
@@ -343,7 +343,7 @@ public class FileUtils
         };
 
         try (Cursor cursor = context.getContentResolver()
-                                 .query(uri, projection, selection, selectionArgs, null))
+             .query(uri, projection, selection, selectionArgs, null))
         {
             if (cursor != null && cursor.moveToFirst())
             {
@@ -552,44 +552,21 @@ public class FileUtils
     public static void copyFile(File sourceFile, File destFile)
     throws IOException
     {
-
         if (!destFile.exists())
             destFile.createNewFile();
 
-        FileChannel source = null;
-        FileChannel destination = null;
-        FileInputStream is = null;
-        FileOutputStream os = null;
-
-        try
+        try (FileInputStream is = new FileInputStream(sourceFile);
+             FileOutputStream os = new FileOutputStream(destFile);
+             FileChannel source = is.getChannel();
+             FileChannel destination = os.getChannel())
         {
-            is = new FileInputStream(sourceFile);
-            os = new FileOutputStream(destFile);
-            source = is.getChannel();
-            destination = os.getChannel();
-
             long count = 0;
             long size = source.size();
             while (count < size)
                 count += destination.transferFrom(source, count, size - count);
         }
-        catch (Exception e)
-        {
-        }
-        finally
-        {
-            if (source != null)
-                source.close();
 
-            if (is != null)
-                is.close();
-
-            if (destination != null)
-                destination.close();
-
-            if (os != null)
-                os.close();
-        }
+        catch (Exception e) {}
     }
 
     /**

@@ -23,10 +23,18 @@
   <string name="goToDate">Vai alla data</string>
   <string name="search">Cerca…</string>
   <string name="findAll">Cerca ovunque…</string>
+  <string name="share">"Condividi…"</string>
   <string name="addTime">Aggiungi orario</string>
+  <string name="addEvents">Aggiungi eventi</string>
   <string name="addMedia">Aggiungi media…</string>
   <string name="editStyles">Modifica stili…</string>
   <string name="editScript">Modifica script…</string>
+  <string name="backup">Esegui backup</string>
+  <string name="start">Backup avviato</string>
+  <string name="complete">Backup completato</string>
+  <string name="changes">Desideri salvare le modifiche?</string>
+  <string name="save">Salva</string>
+  <string name="discard">Annulla</string>
   <string name="settings">Impostazioni</string>
   <string name="calendar">Calendario</string>
   <string name="pref_calendar">
@@ -51,26 +59,39 @@
   </string>
   <string name="folder">Cartella di salvataggio</string>
   <string name="index">Indice</string>
-  <string name="pref_use_index">Pagina indice</string>
+  <string name="pref_use_index">Imposta una pagina indice</string>
   <string name="pref_use_index_summ">
     Utilizza una pagina come indice del tuo diario
   </string>
   <string name="pref_index_page">Pagina indice</string>
+  <string name="template">Template</string>
+  <string name="pref_use_template">Imposta un template</string>
+  <string name="pref_use_template_summ">
+    Utilizza una pagina di template per le nuove voci del tuo diario
+  </string>
+  <string name="pref_template_page">Pagina di template</string>
   <string name="theme">Tema</string>
   <string name="pref_dark_theme">Scuro</string>
   <string name="pref_dark_theme_summ">
-    Usa il tema scuro durante la modifica
+    Utilizza il tema scuro durante la modifica
   </string>
   <string name="about">Altro su</string>
-  <string name="pref_about_summ">Versione <a href="https://github.com/billthefarmer/diary/releases/latest">Diary %s</a></string>
+  <string name="pref_about_summ"><a
+  href="https://github.com/billthefarmer/diary/releases/latest">Versione
+  %s</a></string>
   <string name="built">Assemblato il %s</string>
   <string name="licence">Licenza <a href="https://www.gnu.org/licenses/gpl.txt">GNU GPLv3</a>
   </string>
-  <string name="copyright">Copyright \u00A9 2012 <a href="mailto:hola@josep-portella.com">Josep Portella
-  Florit</a>\nCopyright \u00A9 2017 <a href="http://billthefarmer.github.io">Bill Farmer</a>\nCustom
-  calendar by <a href="https://github.com/npanigrahy/Custom-Calendar-View">Custom
-  Calendar View</a>\nMarkdown view by <a href="https://github.com/falnatsheh/MarkdownView">Markdown
-  View</a>\nItalian translation by <a href="https://github.com/marcoM32">Marco Magliano</a>\nFile
-  utilities by <a href="https://github.com/iPaulPro">Paul Burke</a>
+  <string name="copyright">Copyright \u00A9 2012 <a
+  href="mailto:hola@josep-portella.com">Josep Portella
+  Florit</a>\nCopyright \u00A9 2017 <a
+  href="http://billthefarmer.github.io">Bill Farmer</a>\n\nCustom
+  calendar by <a
+  href="https://github.com/npanigrahy/Custom-Calendar-View">Custom
+  Calendar View</a>, Markdown view by <a
+  href="https://github.com/falnatsheh/MarkdownView">Markdown View</a>,
+  Italian translation by <a href="https://github.com/marcoM32">Marco
+  Magliano</a>, File utilities by <a
+  href="https://github.com/iPaulPro">Paul Burke</a>
   </string>
 </resources>

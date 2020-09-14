@@ -29,6 +29,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       android:title="@string/findAll"
       android:visible="false" />
   <item
+      android:id="@+id/cancel"
+      android:icon="@drawable/ic_action_cancel"
+      android:showAsAction="ifRoom"
+      android:title="@android:string/cancel"
+      android:visible="false" />
+  <item
       android:id="@+id/prevEntry"
       android:icon="@drawable/ic_action_previous"
       android:showAsAction="ifRoom"
@@ -61,10 +67,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       android:showAsAction="ifRoom|collapseActionView"
       android:title="@string/search" />
   <item
+      android:id="@+id/share"
+      android:icon="@drawable/ic_action_share"
+      android:showAsAction="ifRoom"
+      android:title="@string/share" />
+  <item
       android:id="@+id/addTime"
       android:icon="@drawable/ic_action_time"
       android:showAsAction="ifRoom"
       android:title="@string/addTime" />
+  <item
+      android:id="@+id/addEvents"
+      android:icon="@drawable/ic_action_time"
+      android:showAsAction="ifRoom"
+      android:title="@string/addEvents" />
   <item
       android:id="@+id/addMedia"
       android:icon="@drawable/ic_action_picture"
@@ -80,6 +96,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       android:icon="@drawable/ic_action_save"
       android:showAsAction="ifRoom"
       android:title="@string/editScript" />
+  <item
+      android:id="@+id/backup"
+      android:icon="@drawable/ic_action_save"
+      android:showAsAction="ifRoom"
+      android:title="@string/backup" />
   <item
       android:id="@+id/settings"
       android:icon="@drawable/ic_action_settings"
